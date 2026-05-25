@@ -27,18 +27,19 @@ The program prints:
 - `client.py`: Converts CSV datasets into MP-SPDZ player input format (`Player-Data/Input-P0-0-<dataset>`).
 - `simulate.py`: Plain Python reference implementation for sanity checks.
 - `Player-Data/`: Example input files generated for MP-SPDZ runs.
-- `*_kmeans.csv`, `divorce.csv`: Supported datasets.
 
-## Supported Datasets
+## Dataset Configuration
 
-- beans
-- diabetes
-- divorce
-- parkinsons
-- rice
-- wdbc
+Dataset-specific metadata is configured in `gini_fs.mpc`.
 
-Dataset-specific metadata (rows/features/classes/selected-k) is configured inside `gini_fs.mpc`.
+| Dataset | CSV File | Target Column | Dropped Columns | Rows (m) | Features (p) | Classes (n) | Selected Features (k) |
+|---|---|---|---|---:|---:|---:|---:|
+| beans | `beans_kmeans.csv` | `Class` | none | 13611 | 16 | 7 | 10 |
+| diabetes | `diabetes_kmeans.csv` | `Outcome` | none | 768 | 8 | 2 | 7 |
+| divorce | `divorce.csv` | `Class` | none | 170 | 54 | 2 | 45 |
+| parkinsons | `parkinsons_kmeans.csv` | `status` | `name` | 195 | 22 | 2 | 18 |
+| rice | `rice_binned_kmeans.csv` | `Class` | none | 3810 | 7 | 2 | 5 |
+| wdbc | `wdbc_binned_kmeans.csv` | `Diagnosis` | `ID` | 569 | 30 | 2 | 22 |
 
 ## Prerequisites
 
@@ -89,10 +90,10 @@ From your MP-SPDZ root:
 
 ```bash
 ./compile.py -R 64 gini_fs
-Scripts/replicated-ring.sh gini_fs -N 3 -v
+Scripts/ring.sh gini_fs -N 3 -v
 ```
 
-This uses replicated-ring with 3 parties (active 3PC setting in your workflow).
+This uses ring with 3 parties (active 3PC setting in your workflow).
 
 ### 5. Validate with local simulation (optional)
 
