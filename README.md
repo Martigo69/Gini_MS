@@ -71,7 +71,19 @@ python client.py
 
 This writes `Player-Data/Input-P0-0-<dataset>`.
 
-### 3. Compile and run MP-SPDZ program
+### 3. Copy files into MP-SPDZ and rename player input
+
+After generating `Player-Data/Input-P0-0-<dataset>` in this repository, copy files to your MP-SPDZ repository:
+
+```bash
+# from Gini_MS repo root
+cp gini_fs.mpc /path/to/MP-SPDZ/Programs/Source/gini_fs.mpc
+cp Player-Data/Input-P0-0-<dataset> /path/to/MP-SPDZ/Player-Data/Input-P0-0
+```
+
+`gini_fs.mpc` must be placed in `Programs/Source/`, and the input file must be renamed to `Input-P0-0` in MP-SPDZ.
+
+### 4. Compile and run with active 3PC
 
 From your MP-SPDZ root:
 
@@ -80,11 +92,9 @@ From your MP-SPDZ root:
 Scripts/replicated-ring.sh gini_fs -N 3 -v
 ```
 
-Notes:
-- Use the MP-SPDZ protocol and party count that match your environment.
-- If your setup uses direct party executables, run the equivalent command for your protocol.
+This uses replicated-ring with 3 parties (active 3PC setting in your workflow).
 
-### 4. Validate with local simulation (optional)
+### 5. Validate with local simulation (optional)
 
 Set `dataset_name` in `simulate.py`, then run:
 
