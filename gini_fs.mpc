@@ -1,0 +1,260 @@
+"""
+Privacy-Preserving Feature Selection using GINI-FS
+Based on: Li, Dowsley, De Cock "Privacy-Preserving Feature Selection 
+          with Secure Multiparty Computation"
+WITH DETAILED OUTPUT FOR VERIFICATION - SIMPLIFIED
+"""
+
+from Compiler.types import sfix, sint, Matrix, Array
+from Compiler.library import print_ln, for_range
+
+# Dataset selection - change this to switch datasets
+dataset = 'rice' 
+
+# Dataset parameters and column names
+if dataset == 'beans':
+    m = 13611        # instances
+    p = 16         # features
+    k = 10         # features to select
+    n = 7          # classes
+    column_names = ['Area', 'Perimeter', 'MajorAxisLength', 'MinorAxisLength', 'AspectRation', 'Eccentricity', 'ConvexArea', 'EquivDiameter', 'Extent', 'Solidity', 'roundness', 'Compactness', 'ShapeFactor1', 'ShapeFactor2', 'ShapeFactor3', 'ShapeFactor4']
+
+elif dataset == 'diabetes':
+    m = 768        # instances
+    p = 8        # features
+    k = 7         # features to select
+    n = 2          # classes
+    column_names = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DiabetesPedigreeFunction', 'Age']
+
+elif dataset == 'divorce':
+    m = 170        # instances
+    p = 54         # features
+    k = 45         # features to select
+    n = 2          # classes
+    column_names = ['Atr1', 'Atr2', 'Atr3', 'Atr4', 'Atr5', 'Atr6', 'Atr7', 'Atr8', 'Atr9', 'Atr10', 'Atr11', 'Atr12', 'Atr13', 'Atr14', 'Atr15', 'Atr16', 'Atr17', 'Atr18', 'Atr19', 'Atr20', 'Atr21', 'Atr22', 'Atr23', 'Atr24', 'Atr25', 'Atr26', 'Atr27', 'Atr28', 'Atr29', 'Atr30', 'Atr31', 'Atr32', 'Atr33', 'Atr34', 'Atr35', 'Atr36', 'Atr37', 'Atr38', 'Atr39', 'Atr40', 'Atr41', 'Atr42', 'Atr43', 'Atr44', 'Atr45', 'Atr46', 'Atr47', 'Atr48', 'Atr49', 'Atr50', 'Atr51', 'Atr52', 'Atr53', 'Atr54']
+
+elif dataset == 'parkinsons':
+    m = 195        # instances
+    p = 22         # features
+    k = 18         # features to select
+    n = 2          # classes
+    column_names = ['MDVP:Fo(Hz)', 'MDVP:Fhi(Hz)', 'MDVP:Flo(Hz)', 'MDVP:Jitter(%)', 'MDVP:Jitter(Abs)', 'MDVP:RAP', 'MDVP:PPQ', 'Jitter:DDP', 'MDVP:Shimmer', 'MDVP:Shimmer(dB)', 'Shimmer:APQ3', 'Shimmer:APQ5', 'MDVP:APQ', 'Shimmer:DDA', 'NHR', 'HNR', 'RPDE', 'DFA', 'spread1', 'spread2', 'D2', 'PPE']
+
+elif dataset == 'rice':
+    m = 3810        # instances
+    p = 7         # features
+    k = 5         # features to select
+    n = 2          # classes
+    column_names = ['Area', 'Perimeter', 'Major_Axis_Length', 'Minor_Axis_Length', 'Eccentricity', 'Convex_Area', 'Extent']
+
+elif dataset == 'wdbc':
+    m = 569        # instances
+    p = 30         # features
+    k = 22         # features to select
+    n = 2          # classes
+    column_names = ['Radius_Mean', 'Texture_Mean', 'Perimeter_Mean', 'Area_Mean', 'Smoothness_Mean', 'Compactness_Mean', 'Concavity_Mean', 'Concave_Points_Mean', 'Symmetry_Mean', 'Fractal_Dimension_Mean', 'Radius_SE', 'Texture_SE', 'Perimeter_SE', 'Area_SE', 'Smoothness_SE', 'Compactness_SE', 'Concavity_SE', 'Concave_Points_SE', 'Symmetry_SE', 'Fractal_Dimension_SE', 'Radius_Worst', 'Texture_Worst', 'Perimeter_Worst', 'Area_Worst', 'Smoothness_Worst', 'Compactness_Worst', 'Concavity_Worst', 'Concave_Points_Worst', 'Symmetry_Worst', 'Fractal_Dimension_Worst']
+
+else:
+    # Default to divorce if invalid
+    m = 170
+    p = 54
+    k = 45
+    n = 2
+    column_names = ['Atr1', 'Atr2', 'Atr3', 'Atr4', 'Atr5', 'Atr6', 'Atr7', 'Atr8', 'Atr9', 'Atr10', 'Atr11', 'Atr12', 'Atr13', 'Atr14', 'Atr15', 'Atr16', 'Atr17', 'Atr18', 'Atr19', 'Atr20', 'Atr21', 'Atr22', 'Atr23', 'Atr24', 'Atr25', 'Atr26', 'Atr27', 'Atr28', 'Atr29', 'Atr30', 'Atr31', 'Atr32', 'Atr33', 'Atr34', 'Atr35', 'Atr36', 'Atr37', 'Atr38', 'Atr39', 'Atr40', 'Atr41', 'Atr42', 'Atr43', 'Atr44', 'Atr45', 'Atr46', 'Atr47', 'Atr48', 'Atr49', 'Atr50', 'Atr51', 'Atr52', 'Atr53', 'Atr54']
+
+D = Matrix(m, p, sfix)
+L = Matrix(m, n-1, sint)
+
+print_ln("STEP 1: Loading inputs for %s dataset (Protocol 3, Line 1)", dataset)
+
+@for_range(m)
+def read_D_row(i):
+    @for_range(p)
+    def read_D_col(j):
+        d_int = sint.get_input_from(0)
+        D[i][j] = sfix._new(d_int)  
+        
+@for_range(m)
+def read_L_row(i):
+    @for_range(n-1)
+    def read_L_col(j):
+        L[i][j] = sint.get_input_from(0)  
+
+print_ln("STEP 1 complete: data loaded")
+
+# -- Protocol 2: πMS-GINI (from paper) --
+def MS_GINI(F, L_mat, m_rows, n_classes, feature_idx):
+
+    theta = sfix(0)
+    @for_range(m_rows)
+    def loop(i):
+        theta.update(theta + (F[i] - theta)/ (i + 1))
+    
+    a = sint(0)
+    b = sint(0)
+    A = Array(n_classes, sint)
+    B = Array(n_classes, sint)
+    @for_range(n_classes)
+    def init_arrays(j):
+        A[j] = sint(0)
+        B[j] = sint(0)
+
+    @for_range(m_rows)
+    def loop_i(i):
+        flags = theta < F[i]  
+        b.update(b + flags)  
+        
+        @for_range(n_classes-1)
+        def cls(j):
+            lbl = L_mat[i][j]  
+            flagm = flags * lbl  
+            B[j] = B[j] + flagm
+            A[j] = A[j] + lbl - flagm
+
+    a = sint(m_rows) - b
+
+    sum_A = sint(0)
+    @for_range(n_classes-1)
+    def sumA_loop(j):
+        sum_A.update(sum_A + A[j])
+    A[n_classes-1] = a - sum_A
+
+    sum_B = sint(0)
+    @for_range(n_classes-1)
+    def sumB_loop(j):
+        sum_B.update(sum_B + B[j])
+    B[n_classes-1] = b - sum_B
+
+    sum_A_sq = sint(0)
+    @for_range(n_classes)
+    def sumA_sq(j):
+        sum_A_sq.update(sum_A_sq + A[j] * A[j])
+
+    sum_B_sq = sint(0)
+    @for_range(n_classes)
+    def sumB_sq(j):
+        sum_B_sq.update(sum_B_sq + B[j] * B[j])
+
+    num_A = a * a - sum_A_sq
+    num_B = b * b - sum_B_sq
+    
+    G_le = sfix(num_A) / sfix(a)
+    G_gt = sfix(num_B) / sfix(b)
+
+    G_F = G_le + G_gt
+
+    return G_F, theta, a, b, G_le, G_gt, A, B
+
+# -- Protocol 1: πFILTER-FS (from paper) --
+def FILTER_FS(D_mat, G_scores, k_select, t):
+    
+    m_rows, p_cols = D_mat.sizes
+
+    G_copy = Array(p_cols, sfix)
+    @for_range(p_cols)
+    def copy_scores(j):
+        G_copy[j] = G_scores[j]
+
+    I = Array(k_select, sfix)
+    T = Matrix(p_cols, k_select, sfix)
+
+    @for_range(k_select)
+    def round_i(i):
+        min_idx = sfix(0)
+        min_val = G_copy[0]
+        @for_range(1, p_cols)
+        def find_min(j):
+            less = G_copy[j] < min_val
+            min_val.update(less.if_else(G_copy[j], min_val))
+            min_idx.update(less.if_else(sfix(j), min_idx))
+        I[i] = min_idx
+
+        @for_range(p_cols)
+        def mask(j):
+            sel = I[i] == sfix(j)
+            T[j][i] = sel
+            G_copy[j] = sel.if_else(t, G_copy[j])
+
+    D_prime = Matrix(m_rows, k_select, sfix)
+    @for_range(m_rows)
+    def row(r):
+        @for_range(k_select)
+        def col(c):
+            acc = sfix(0)
+            @for_range(p_cols)
+            def inner(j):
+                acc.update(acc + D_mat[r][j] * T[j][c])
+            D_prime[r][c] = acc
+
+    return D_prime, I
+
+# -- Protocol 3: πGINI-FS (from paper) --
+print_ln("STEP 2: Computing MS-GINI scores (Protocol 3)")
+
+G = Array(p, sfix)
+Theta = Array(p, sfix)
+A_counts = Array(p, sint)
+B_counts = Array(p, sint)
+G_le_scores = Array(p, sfix)
+G_gt_scores = Array(p, sfix)
+
+@for_range(p)
+def score_loop(j):
+    F = Array(m, sfix)
+    @for_range(m)
+    def getcol(i):
+        F[i] = D[i][j]
+    
+    result = MS_GINI(F, L, m, n, j)
+    G[j] = result[0]
+    Theta[j] = result[1]
+    A_counts[j] = result[2]
+    B_counts[j] = result[3]
+    G_le_scores[j] = result[4]
+    G_gt_scores[j] = result[5]
+
+print_ln("All MS-GINI scores computed")
+print_ln("")
+
+# VERIFICATION OUTPUT - All scores
+print_ln("MS-GINI Scores for all features in %s dataset (sorted by score - lower is better):", dataset)
+print_ln("-" * 100)
+print_ln("Feature                Score        Theta (Mean)        a        b         G(S<=θ)         G(S>θ)")
+print_ln("-" * 100)
+
+for j in range(p):
+    feature_name = column_names[j]
+    print_ln("%s                  %s        %s        %s        %s        %s        %s",
+             feature_name,  # Compile-time constant string
+             G[j].reveal(),
+             Theta[j].reveal(),
+             A_counts[j].reveal(),
+             B_counts[j].reveal(),
+             G_le_scores[j].reveal(),
+             G_gt_scores[j].reveal())
+
+print_ln("")
+
+# Protocol 3, Line 4: Run FILTER-FS
+t_val = sfix(m)
+D_prime, I = FILTER_FS(D, G, k, t_val)
+
+# VERIFICATION OUTPUT - Selected indices
+print_ln("=" * 100)
+print_ln("")
+print_ln("STEP 3: Top %s features with lowest MS-GINI scores for %s dataset", k, dataset)
+print_ln("-" * 60)
+print_ln("Rank     Feature Index                MS-GINI Score")
+print_ln("-" * 60)
+
+# Simplest approach: Just reveal indices and iterate to print
+@for_range(k)
+def reveal_and_print(i):
+    idx = I[i].reveal()
+    print_ln("%s        %s                  (see scores above)",
+             i + 1,
+             idx)
+
+print_ln("")
+print_ln("DONE")
+
